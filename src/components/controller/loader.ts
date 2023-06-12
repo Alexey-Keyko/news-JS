@@ -1,45 +1,71 @@
+import { IDrawNews } from '../view/appView';
+
+enum Errors {
+    AutError = 401,
+    NotFoundError = 404,
+}
+
+enum Methods {
+    GET,
+    PUT,
+    POST
+}
+
+type Method = keyof typeof Methods;
+
+interface IGetResp {
+    endpoint: string;
+    options?: { [apiKey: string]: string };
+}
+
+interface ICallback<T> {
+    (data: T | IDrawNews): void;
+}
+
 class Loader {
-    constructor(baseLink, options) {
+    baseLink: string;
+    options: { [apiKey: string]: string };
+
+    constructor(baseLink: string, options: { apiKey: string }) {
         this.baseLink = baseLink;
         this.options = options;
     }
 
-    getResp(
-        { endpoint, options = {} },
+    public getResp(
+        { endpoint = '', options = {} }: IGetResp,
         callback = () => {
             console.error('No callback for GET response');
         }
-    ) {
+    ): void {
         this.load('GET', endpoint, callback, options);
     }
 
-    errorHandler(res) {
+    private errorHandler(res: Response): Response {
         if (!res.ok) {
-            if (res.status === 401 || res.status === 404)
+            if (res.status === Errors.AutError || res.status === Errors.NotFoundError)
                 console.log(`Sorry, but there is ${res.status} error: ${res.statusText}`);
             throw Error(res.statusText);
         }
-
         return res;
     }
 
-    makeUrl(options, endpoint) {
-        const urlOptions = { ...this.options, ...options };
-        let url = `${this.baseLink}${endpoint}?`;
+    private makeUrl(options: { [apiKey: string]: string }, endpoint: string): string {
+        const urlOptions: { [apiKey: string]: string } = { ...this.options, ...options };
+        let url: string = `${this.baseLink}${endpoint}?`;
 
-        Object.keys(urlOptions).forEach((key) => {
+        Object.keys(urlOptions).forEach((key: string) => {
             url += `${key}=${urlOptions[key]}&`;
         });
 
         return url.slice(0, -1);
     }
 
-    load(method, endpoint, callback, options = {}) {
+    private load<T>(method: Method, endpoint: string, callback: ICallback<T | IDrawNews>, options = {}): void {
         fetch(this.makeUrl(options, endpoint), { method })
             .then(this.errorHandler)
-            .then((res) => res.json())
-            .then((data) => callback(data))
-            .catch((err) => console.error(err));
+            .then((res: Response) => res.json())
+            .then((data: T | IDrawNews) => callback(data))
+            .catch((err: Error) => console.error(err));
     }
 }
 
